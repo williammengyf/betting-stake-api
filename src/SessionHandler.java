@@ -21,8 +21,18 @@ public class SessionHandler implements HttpHandler {
             try (OutputStream os = exchange.getResponseBody()) {
                 os.write(session.getBytes());
             }
+        } else if (!exchange.getRequestMethod().equalsIgnoreCase("GET")) {
+            String error = "405 Method Not Allowed: Only GET method is supported.";
+            exchange.sendResponseHeaders(405, error.length());
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(error.getBytes());
+            }
         } else {
-            exchange.sendResponseHeaders(400, -1);
+            String error = "405 Method Not Allowed: Only GET method is supported.";
+            exchange.sendResponseHeaders(405, error.length());
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(error.getBytes());
+            }
         }
     }
 }

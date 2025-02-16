@@ -2,6 +2,7 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -29,7 +30,11 @@ public class RouterHandler implements HttpHandler {
         } else if (highStakesMatcher.matches()) {
             highStakesHandler.handle(exchange);
         } else {
-            exchange.sendResponseHeaders(404, -1);
+            String error = "404 Not Found: The requested resource could not be found.";
+            exchange.sendResponseHeaders(404, error.length());
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(error.getBytes());
+            }
         }
     }
 }

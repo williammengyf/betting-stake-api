@@ -3,6 +3,7 @@ import com.sun.net.httpserver.HttpHandler;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -20,7 +21,11 @@ public class StakeHandler implements HttpHandler {
             String sessionKey = matcher.group(2);
 
             if (!SessionManager.isValidSession(sessionKey)) {
-                exchange.sendResponseHeaders(403, -1);
+                String error = "403 Forbidden: Invalid session key.";
+                exchange.sendResponseHeaders(403, error.length());
+                try (OutputStream os = exchange.getResponseBody()) {
+                    os.write(error.getBytes());
+                }
                 return;
             }
 
@@ -29,14 +34,32 @@ public class StakeHandler implements HttpHandler {
             int stake = Integer.parseInt(stakeStr);
             int customerId = SessionManager.getCustomerId(sessionKey);
             if (customerId == -1) {
-                exchange.sendResponseHeaders(403, -1);
+                String error = "403 Forbidden: Invalid session key.";
+                exchange.sendResponseHeaders(403, error.length());
+                try (OutputStream os = exchange.getResponseBody()) {
+                    os.write(error.getBytes());
+                }
                 return;
             }
 
             BettingManager.addStake(betOfferId, customerId, stake);
-            exchange.sendResponseHeaders(200, -1);
+            String response = "betOfferId=" + betOfferId + ",customerId=" + customerId + ",stake=" + stake;
+            exchange.sendResponseHeaders(200, response.length());
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(response.getBytes());
+            }
+        } else if (!exchange.getRequestMethod().equalsIgnoreCase("POST")) {
+            String error = "405 Method Not Allowed: Only POST method is supported.";
+            exchange.sendResponseHeaders(405, error.length());
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(error.getBytes());
+            }
         } else {
-            exchange.sendResponseHeaders(400, -1);
+            String error = "400 Bad Request: Invalid request format.";
+            exchange.sendResponseHeaders(400, error.length());
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(error.getBytes());
+            }
         }
     }
 }
