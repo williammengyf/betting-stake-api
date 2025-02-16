@@ -2,12 +2,14 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class BettingManager {
-    private static final ConcurrentHashMap<Integer, Map<Integer, Integer>> betOffers = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Integer, Map<Integer, List<Integer>>> betOffers = new ConcurrentHashMap<>();
+
+    private record StakeEntry(int customerId, int stake) {}
 
     public static synchronized void addStake(int betOfferId, int customerId, int stake) {
         betOffers.putIfAbsent(betOfferId, new ConcurrentHashMap<>());
-        int currentStake = betOffers.get(betOfferId).getOrDefault(customerId, 0);
-        betOffers.get(betOfferId).put(customerId, Math.max(currentStake, stake));
+        betOffers.get(betOfferId).putIfAbsent(customerId, new ArrayList<>());
+        betOffers.get(betOfferId).get(customerId).add(stake);
     }
 
     public static List<String> getHighStakes(int betOfferId) {
@@ -15,16 +17,20 @@ public class BettingManager {
             return Collections.emptyList();
         }
 
-        List<Map.Entry<Integer, Integer>> stakeList = new ArrayList<>(betOffers.get(betOfferId).entrySet());
+        List<StakeEntry> stakeList = new ArrayList<>();
 
-        stakeList.sort((o1, o2) -> Integer.compare(o2.getValue(), o1.getValue()));
+        for (Map.Entry<Integer, List<Integer>> entry : betOffers.get(betOfferId).entrySet()) {
+            int customerId = entry.getKey();
+            int maxStake = Collections.max(entry.getValue());
+            stakeList.add(new StakeEntry(customerId, maxStake));
+        }
+
+        stakeList.sort((o1, o2) -> Integer.compare(o2.stake, o1.stake));
 
         List<String> result = new ArrayList<>();
-        int count = 0;
-        for (Map.Entry<Integer, Integer> entry : stakeList) {
-            result.add(entry.getKey() + "=" + entry.getValue());
-            count++;
-            if (count == 20) break;
+        for (int i = 0; i < Math.min(20, stakeList.size()); i++) {
+            StakeEntry entry = stakeList.get(i);
+            result.add(entry.customerId + "=" + entry.stake);
         }
 
         return result;
