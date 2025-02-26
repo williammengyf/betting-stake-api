@@ -2,37 +2,51 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class BettingManager {
-    private static final ConcurrentHashMap<Integer, Map<Integer, List<Integer>>> betOffers = new ConcurrentHashMap<>();
+    private static final int MAX_TOP_STAKES = 20;
+    private static final ConcurrentHashMap<Integer, PriorityQueue<StakeEntry>> betOffers = new ConcurrentHashMap<>();
 
     private record StakeEntry(int customerId, int stake) {}
 
     public static synchronized void addStake(int betOfferId, int customerId, int stake) {
-        betOffers.putIfAbsent(betOfferId, new ConcurrentHashMap<>());
-        betOffers.get(betOfferId).putIfAbsent(customerId, new ArrayList<>());
-        betOffers.get(betOfferId).get(customerId).add(stake);
+        betOffers.putIfAbsent(betOfferId, new PriorityQueue<>((Comparator.comparingInt(o -> o.stake))));
+        PriorityQueue<StakeEntry> stakesHeap = betOffers.get(betOfferId);
+        StakeEntry newStake = new StakeEntry(customerId, stake);
+
+        boolean customerExists = false;
+        for (StakeEntry entry : stakesHeap) {
+            if (entry.customerId == customerId) {
+                customerExists = true;
+                if (entry.stake < stake) {
+                    stakesHeap.remove(entry);
+                    stakesHeap.offer(newStake);
+                }
+                break;
+            }
+        }
+
+        if (!customerExists) {
+            stakesHeap.offer(newStake);
+        }
+
+        if (stakesHeap.size() > MAX_TOP_STAKES) {
+            stakesHeap.remove();
+        }
     }
 
     public static List<String> getHighStakes(int betOfferId) {
-        if (!betOffers.containsKey(betOfferId)) {
+        PriorityQueue<StakeEntry> stakesHeap = betOffers.get(betOfferId);
+
+        if (stakesHeap == null || stakesHeap.isEmpty()) {
             return Collections.emptyList();
         }
 
-        List<StakeEntry> stakeList = new ArrayList<>();
-
-        for (Map.Entry<Integer, List<Integer>> entry : betOffers.get(betOfferId).entrySet()) {
-            int customerId = entry.getKey();
-            int maxStake = Collections.max(entry.getValue());
-            stakeList.add(new StakeEntry(customerId, maxStake));
-        }
-
-        stakeList.sort((o1, o2) -> Integer.compare(o2.stake, o1.stake));
+        List<StakeEntry> sortedStakes = new ArrayList<>(stakesHeap);
+        sortedStakes.sort((o1, o2) -> Integer.compare(o2.stake(), o1.stake()));
 
         List<String> result = new ArrayList<>();
-        for (int i = 0; i < Math.min(20, stakeList.size()); i++) {
-            StakeEntry entry = stakeList.get(i);
-            result.add(entry.customerId + "=" + entry.stake);
+        for (StakeEntry entry : sortedStakes) {
+            result.add(entry.customerId() + "=" + entry.stake());
         }
-
         return result;
     }
 }

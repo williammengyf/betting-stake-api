@@ -43,6 +43,7 @@ curl -X POST "http://localhost:8001/888/stake?sessionkey=4e05faf" -d "5000"
 
 - Only requests with a valid session key are processed.
 - Customers can place multiple stakes, but only the highest per customer is stored.
+- Only the top 20 stakes per betting offer are maintained
 
 ### 3. Retrieve High Stakes
 
@@ -72,8 +73,8 @@ Example Response:
 
 - A nested Concurrent Hash Map is used to store stakes
 	- Key: Bet offer ID.
-	- Value: Concurrent Hash Map (customer ID -> list of stakes).
-- All stakes are stored, while only the highest stake per customer will be retrieved when handling requests for high stakes list.
+	- Value: Priority Queue of stake entries (customer id -> stake)
+- Only top 20 stakes per betting offer are stored, optimizing time and space complexity.
 
 ### 3. Usage of Java Record
 
@@ -88,7 +89,8 @@ It keeps the data immutable and more memory-efficient, improves readability and 
 
 - Used Concurrent Hash Map for thread safety.
 - Java's built-in HTTP server has a thread pool to handle concurrent requests efficiently.
-- O(1) time complexity for adding stakes.
+- O(n) time complexity for adding stakes.
+- O(20*log20) = O(1) time for retrieving highest stakes.
 
 ## Conclusion
 
